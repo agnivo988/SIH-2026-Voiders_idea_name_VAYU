@@ -61,3 +61,6 @@ Thumbs.db
 *.tar
 *.tmp
 .tmp/
+
+CLAUDE.md
+AGENTS.md

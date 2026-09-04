@@ -14,6 +14,8 @@ from app.api.routes_admin import router as admin_router
 from app.api.routes_airlines import router as airlines_router
 from app.api.routes_quality import router as quality_router
 from app.api.routes_sources import router as sources_router
+from app.api.routes_cpi import router as cpi_router
+from app.api.routes_recommendations import router as recommendations_router
 
 
 @asynccontextmanager
@@ -39,5 +41,7 @@ app.include_router(airlines_router)
 app.include_router(sources_router)
 app.include_router(quality_router)
 app.include_router(admin_router)
+app.include_router(cpi_router)
+app.include_router(recommendations_router)
 
 
