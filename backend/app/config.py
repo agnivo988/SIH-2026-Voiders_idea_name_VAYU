@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     live_max_retries: int = 2
     live_user_agent: str = "APIx-Research/0.1 (+approved-data-contact)"
     live_api_url: str | None = None
+    frontend_url: str = "https://sih-2026-voiders.vercel.app"
     admin_api_key: str = "change-me"
     base_period_days: int = 7
     model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[2] / ".env", extra="ignore")
