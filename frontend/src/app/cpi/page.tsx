@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
-import { formatPercent, get } from "@/lib/api";
+import { formatPercent, getCached } from "@/lib/api";
 
 type Cpi = { date: string; cpi_value: number; daily_change: number; weekly_change: number; monthly_change: number; sample_count: number; base_period: string };
 type Daily = { date: string; index_value: number; sample_count: number };
@@ -15,6 +15,18 @@ function Chart({ values }: { values: Daily[] }) {
 
 export default function CpiPage() {
   const [cpi, setCpi] = useState<Cpi | null>(null), [daily, setDaily] = useState<Daily[]>([]), [error, setError] = useState<string | null>(null);
-  useEffect(() => { Promise.all([get<Cpi>("/api/cpi/current"), get<Daily[]>("/api/index/daily")]).then(([current, history]) => { setCpi(current); setDaily(history); }).catch((err) => setError(err.message)); }, []);
-  return <AppShell eyebrow="INDEX METHODOLOGY" title="Consumer Price Index" description="The dedicated composite airfare index calculated from stored route medians and configurable weights.">{error && <div className="error-banner">{error}</div>}<section className="cpi-hero"><div><span className="panel-kicker">CURRENT APIx / CPI PROXY</span><strong>{cpi?.cpi_value.toFixed(2) || "--"}</strong><p>Base period: {cpi?.base_period || "--"}</p></div><div className="cpi-change"><span>Daily</span><b>{formatPercent(cpi?.daily_change)}</b><span>Weekly</span><b>{formatPercent(cpi?.weekly_change)}</b><span>Monthly</span><b>{formatPercent(cpi?.monthly_change)}</b></div></section><section className="panel page-panel"><div className="panel-head"><div><div className="panel-kicker">30-DAY HISTORY</div><h2>Composite airfare movement</h2></div><span className="muted">{cpi?.sample_count || 0} latest samples</span></div><Chart values={daily} /></section><section className="method-grid"><article className="panel page-panel"><div className="panel-kicker">FORMULA</div><h2>How CPI is calculated</h2><p className="body-copy">Each route median is compared with its first-seven-day base fare, converted to a price relative, then combined using normalized prototype route weights.</p><code>Σ(route weight × route relative)</code></article><article className="panel page-panel"><div className="panel-kicker">INTERPRETATION</div><h2>Read the signal</h2><p className="body-copy">A value above 100 indicates fares are higher than the configured base period. This is a prototype methodology and does not claim to reproduce official CPI.</p></article></section></AppShell>;
+  const load = async (forceRefresh = false) => {
+    try {
+      const [current, history] = await Promise.all([
+        getCached<Cpi>("/api/cpi/current", 40, forceRefresh),
+        getCached<Daily[]>("/api/index/daily", 40, forceRefresh),
+      ]);
+      setCpi(current);
+      setDaily(history);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load CPI data");
+    }
+  };
+  useEffect(() => { void load(); }, []);
+  return <AppShell eyebrow="INDEX METHODOLOGY" title="Consumer Price Index" description="The dedicated composite airfare index calculated from stored route medians and configurable weights.">{error && <div className="error-banner">{error}</div>}<section className="cpi-hero"><div><span className="panel-kicker">CURRENT APIx / CPI PROXY</span><strong>{cpi?.cpi_value.toFixed(2) || "--"}</strong><p>Base period: {cpi?.base_period || "--"}</p></div><div className="cpi-change"><span>Daily</span><b>{formatPercent(cpi?.daily_change)}</b><span>Weekly</span><b>{formatPercent(cpi?.weekly_change)}</b><span>Monthly</span><b>{formatPercent(cpi?.monthly_change)}</b></div></section><section className="panel page-panel"><div className="panel-head"><div><div className="panel-kicker">30-DAY HISTORY</div><h2>Composite airfare movement</h2></div><button className="icon-button" onClick={() => void load(true)} aria-label="Sync CPI data" title="Sync CPI data">Sync</button></div><Chart values={daily} /></section><section className="method-grid"><article className="panel page-panel"><div className="panel-kicker">FORMULA</div><h2>How CPI is calculated</h2><p className="body-copy">Each route median is compared with its first-seven-day base fare, converted to a price relative, then combined using normalized prototype route weights.</p><code>Σ(route weight × route relative)</code></article><article className="panel page-panel"><div className="panel-kicker">INTERPRETATION</div><h2>Read the signal</h2><p className="body-copy">A value above 100 indicates fares are higher than the configured base period. This is a prototype methodology and does not claim to reproduce official CPI.</p></article></section></AppShell>;
 }
