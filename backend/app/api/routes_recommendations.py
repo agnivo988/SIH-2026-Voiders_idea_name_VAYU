@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import FareQuote, Route
+from app.models import Airline, FareQuote, Route
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
@@ -18,7 +18,7 @@ def recommend_flights(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
-    query = select(FareQuote).join(Route).where(
+    query = select(FareQuote, Airline).join(Route).join(Airline, FareQuote.airline_id == Airline.id).where(
         Route.route_code == route.upper(),
         FareQuote.advance_days == advance_days,
         FareQuote.available.is_(True),
@@ -26,7 +26,7 @@ def recommend_flights(
     )
     if travel_date:
         query = query.where(FareQuote.travel_date == travel_date)
-    rows = db.scalars(query.order_by(FareQuote.total_fare).limit(limit)).all()
+    rows = db.execute(query.order_by(FareQuote.total_fare).limit(limit)).all()
     if not rows:
         raise HTTPException(404, "No available fare observations match these filters")
     return {
@@ -49,6 +49,6 @@ def recommend_flights(
                 "collected_at": row.collected_at,
                 "available": row.available,
             }
-            for row in rows
+            for row, airline in rows
         ],
     }

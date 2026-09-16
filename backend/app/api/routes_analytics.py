@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import FareQuote, Route
+from app.models import Airline, FareQuote, Route
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -22,10 +22,27 @@ def lead_time(route: str | None = None, db: Session = Depends(get_db)) -> dict[s
 
 @router.get("/airlines")
 def airline_comparison(db: Session = Depends(get_db)) -> list[dict[str, object]]:
-    grouped: dict[str, list[float]] = defaultdict(list)
-    for quote in db.scalars(select(FareQuote).where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))):
-        grouped[quote.airline.name].append(float(quote.total_fare))
-    return [{"airline": name, "median_fare": round(median(fares), 2), "average_fare": round(sum(fares) / len(fares), 2), "observations": len(fares)} for name, fares in sorted(grouped.items())]
+    query = (
+        select(
+            FareQuote.airline_id,
+            func.avg(FareQuote.total_fare),
+            func.percentile_cont(0.5).within_group(FareQuote.total_fare),
+            func.count(FareQuote.id),
+        )
+        .join(FareQuote.airline)
+        .where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))
+        .group_by(FareQuote.airline_id)
+    )
+    names = dict(db.execute(select(Airline.id, Airline.name)).all())
+    return [
+        {
+            "airline": names[airline_id],
+            "median_fare": round(float(median_value), 2),
+            "average_fare": round(float(average_value), 2),
+            "observations": observations,
+        }
+        for airline_id, average_value, median_value, observations in sorted(db.execute(query).all(), key=lambda item: names[item[0]])
+    ]
 
 
 @router.get("/volatility")
