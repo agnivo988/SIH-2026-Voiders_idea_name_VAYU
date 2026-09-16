@@ -276,7 +276,7 @@ npm --prefix frontend run dev
 Create `frontend/.env.local` if the API is not running on the default URL:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+API_URL=http://localhost:8000
 ```
 
 Open:
@@ -533,7 +533,7 @@ frontend
 Set the environment variable:
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com
+API_URL=https://your-render-service.onrender.com
 ```
 
 Deploy the frontend, then set the resulting Vercel URL as the backend's `FRONTEND_URL` value. This is required for browser CORS requests.
