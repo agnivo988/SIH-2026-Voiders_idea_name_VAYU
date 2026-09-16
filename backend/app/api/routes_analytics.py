@@ -1,7 +1,7 @@
 from collections import defaultdict
 from statistics import median
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,13 +12,12 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 @router.get("/lead-time")
 def lead_time(route: str | None = None, db: Session = Depends(get_db)) -> dict[str, float | None]:
-    query = select(FareQuote).join(Route).where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))
+    query = select(FareQuote.advance_days, func.avg(FareQuote.total_fare)).join(Route).where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))
     if route:
         query = query.where(Route.route_code == route.upper())
-    values: dict[int, list[float]] = defaultdict(list)
-    for quote in db.scalars(query):
-        values[quote.advance_days].append(float(quote.total_fare))
-    return {f"T+{days}": round(sum(fares) / len(fares), 2) if fares else None for days, fares in [(1, values[1]), (7, values[7]), (15, values[15]), (30, values[30]), (45, values[45])]}
+    query = query.where(FareQuote.advance_days.in_([1, 7, 15, 30, 45])).group_by(FareQuote.advance_days)
+    values = {days: average for days, average in db.execute(query).all()}
+    return {f"T+{days}": round(float(values[days]), 2) if values.get(days) is not None else None for days in [1, 7, 15, 30, 45]}
 
 
 @router.get("/airlines")
@@ -31,13 +30,17 @@ def airline_comparison(db: Session = Depends(get_db)) -> list[dict[str, object]]
 
 @router.get("/volatility")
 def volatility(db: Session = Depends(get_db)) -> list[dict[str, object]]:
-    grouped: dict[str, list[float]] = defaultdict(list)
-    for quote in db.scalars(select(FareQuote).where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))):
-        grouped[quote.route.route_code].append(float(quote.total_fare))
+    query = (
+        select(Route.route_code, func.avg(FareQuote.total_fare), func.avg(FareQuote.total_fare * FareQuote.total_fare))
+        .join(FareQuote, FareQuote.route_id == Route.id)
+        .where(FareQuote.available.is_(True), FareQuote.is_outlier.is_(False))
+        .group_by(Route.route_code)
+    )
     result = []
-    for route, fares in grouped.items():
-        average = sum(fares) / len(fares)
-        deviation = (sum((fare - average) ** 2 for fare in fares) / len(fares)) ** 0.5
+    for route, average_value, squared_average_value in db.execute(query):
+        average = float(average_value)
+        variance = max(float(squared_average_value) - average**2, 0)
+        deviation = variance**0.5
         result.append({"route": route, "standard_deviation": round(deviation, 2), "coefficient_of_variation": round(deviation / average * 100, 2)})
     return sorted(result, key=lambda item: item["coefficient_of_variation"], reverse=True)
 
