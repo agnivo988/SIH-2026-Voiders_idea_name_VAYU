@@ -71,31 +71,31 @@ The index is referred to in the implementation as APIx, short for Airfare Price 
                               |
                               v
                  +--------------------------+
-                 | Source adapters           |
-                 | CSV import / API / demo   |
+                 | Source adapters          |
+                 | CSV import / API / demo  |
                  +-------------+------------+
                                |
                                v
                  +--------------------------+
-                 | Validation and cleaning   |
-                 | Currency, fares, quality  |
+                 | Validation and cleaning  |
+                 | Currency, fares, quality |
                  +-------------+------------+
                                |
                                v
                  +--------------------------+
-                 | PostgreSQL / Supabase     |
-                 | Fare observations         |
+                 | PostgreSQL / Supabase    |
+                 | Fare observations        |
                  | Routes and airlines      |
                  +-------------+------------+
                                |
                 +--------------+--------------+
                 |                             |
                 v                             v
-      +-------------------+          +-------------------+
+      +--------------------+          +-------------------+
       | Index and analytics|          | FastAPI REST API  |
       | CPI/APIx, lead time|          | OpenAPI / JSON    |
       | volatility, surges |          +---------+---------+
-      +-------------------+                    |
+      +--------------------+                    |
                                                v
                                   +------------------------+
                                   | VAYU Next.js dashboard |
@@ -105,7 +105,7 @@ The index is referred to in the implementation as APIx, short for Airfare Price 
 The repository is a small monorepo:
 
 ```text
-.
+
 ├── backend/
 │   ├── app/
 │   │   ├── api/                  FastAPI route modules
